@@ -1,7 +1,7 @@
 name: GuestBook CI/CD Pipeline
 
 env:
-  DOCKER_REPOSITORY: yu3papa/cicd_guestbook
+  DOCKER_REPOSITORY: hacker1122/cicd_guestbook
 
 on:
   push:
