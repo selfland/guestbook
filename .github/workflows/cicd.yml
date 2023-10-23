@@ -1,13 +1,55 @@
 name: GuestBook CI/CD Pipeline
 
-on: [ push]
+env:
+  DOCKER_REPOSITORY: hacker1122/cicd_guestbook
+
+on:
+  push:
 
 jobs:
   ci-job:
     runs-on: ubuntu-latest
-
     steps:
-    - name: executing remote ssh commands using ssh key
+    - name: Check Out
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Maven Build (with JUnit)
+      run: |
+        ./mvnw clean test package
+
+    - name: Upload Test-Result Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: Junit-Surefire_Report
+        path: target/surefire-reports
+        retention-days: 1
+
+    - name: Set Docker Image Tag
+      run: |
+        echo "DOCKER_IMAGE_TAG=$(date +%Y%m%d%H%M%S)_$GITHUB_RUN_NUMBER" >> $GITHUB_ENV
+
+    - name: Docker Image Build
+      run: |
+        docker image build --build-arg VERSION=$DOCKER_IMAGE_TAG --tag "$DOCKER_REPOSITORY:$DOCKER_IMAGE_TAG" .
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Docker Image PUSH
+      run: |
+        docker image push $DOCKER_REPOSITORY:$DOCKER_IMAGE_TAG
+
+    - name: Deploy Guestbook (스테이징 EC2)
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: 15.164.219.217
@@ -15,5 +57,14 @@ jobs:
         key: ${{ secrets.STAGING_PRIVATE_KEY }}
         port: 22
         script: |
-          id
-          hostnamectl
+          docker container rm -f guestbookapp
+          docker container run \
+                           -d \
+                           -p 38080:80 \
+                           --name=guestbookapp \
+                           -e MYSQL_IP=15.164.219.217 \
+                           -e MYSQL_PORT=3306 \
+                           -e MYSQL_DATABASE=guestbook \
+                           -e MYSQL_USER=root \
+                           -e MYSQL_PASSWORD=education \
+                           ${{ env.DOCKER_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
