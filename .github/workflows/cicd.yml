@@ -21,6 +21,10 @@ jobs:
       run: |
         ./mvnw clean test package
 
-    - name: Test 결과 파일 확인
-      run: |
-        ls -l target/surefire-reports/
+    - name: Upload Test-Result Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: Junit-Surefire_Report
+        path: target/surefire-reports
+        retention-days: 1
+
