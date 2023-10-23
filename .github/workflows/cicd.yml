@@ -10,6 +10,10 @@ jobs:
     - name: Check Out
       uses: actions/checkout@v3
 
-    - name: 소스코드 확인
+    - name: Maven Build
       run: |
-        tree -L 5 ~/work/guestbook
+        ./mvnw clean package
+
+    - name: Build 결과 확인
+      run: |
+        ls -l target/
